@@ -310,6 +310,9 @@ if !d then prerr_endline "ACCEPT";
                `Write (buf, pos, len, res) ->
                   wrap_syscall outputs fd res
                     (fun () -> Unix.write fd buf pos len)
+             | `WriteSubstring (buf, pos, len, res) ->
+                  wrap_syscall outputs fd res
+                    (fun () -> Unix.write_substring fd buf pos len)
              | `Wait res ->
                   wrap_syscall inputs fd res (fun () -> ())
            with Not_found ->
@@ -340,7 +343,7 @@ external start_read :
 external start_write :
   file_descr -> buffer -> int -> int -> int -> unit = "win_write"
 
-let read ch s pos len =
+let _read_string ch s pos len =
 if !d then Format.eprintf "Start reading@.";
   let id = acquire_id () in
   let buf = acquire_buffer () in
@@ -351,7 +354,10 @@ if !d then Format.eprintf "Start reading@.";
 if !d then Format.eprintf "Reading started@.";
   res
 
-let write ch s pos len =
+let read ch s pos len =
+  _read_string ch (Bytes.to_string s) pos len
+
+let _write_string ch s pos len =
 if !d then Format.eprintf "Start writing@.";
   let id = acquire_id () in
   let buf = acquire_buffer () in
@@ -362,6 +368,12 @@ if !d then Format.eprintf "Start writing@.";
   start_write ch buf 0 len id;
 if !d then Format.eprintf "Writing started@.";
   res
+
+let write ch s pos len =
+  _write_string ch (Bytes.to_string s) pos len
+
+let write_substring ch s pos len =
+  _write_string ch s pos len
 
 external win_pipe_in :
   unit -> Unix.file_descr * Unix.file_descr = "win_pipe_in"
@@ -495,7 +507,7 @@ let rec unsafe_really_input ic s ofs len =
   end
 
 let really_input ic s ofs len =
-  if ofs < 0 || len < 0 || ofs > String.length s - len
+  if ofs < 0 || len < 0 || ofs > Bytes.length s - len
   then Lwt.fail (Invalid_argument "really_input")
   else unsafe_really_input ic s ofs len
 
@@ -503,16 +515,16 @@ let input_line ic =
   let buf = ref (Bytes.create 128) in
   let pos = ref 0 in
   let rec loop () =
-    if !pos = String.length !buf then begin
+    if !pos = Bytes.length !buf then begin
       let newbuf = Bytes.create (2 * !pos) in
-      String.blit !buf 0 newbuf 0 !pos;
+      Bytes.blit !buf 0 newbuf 0 !pos;
       buf := newbuf
     end;
     Lwt.bind (input_char ic) (fun c ->
     if c = '\n' then
       Lwt.return ()
     else begin
-      !buf.[!pos] <- c;
+      Bytes.set !buf !pos c;
       incr pos;
       loop ()
     end)
@@ -527,8 +539,8 @@ let input_line ic =
               Lwt.fail e))
     (fun () ->
        let res = Bytes.create !pos in
-       String.blit !buf 0 res 0 !pos;
-       Lwt.return res)
+       Bytes.blit !buf 0 res 0 !pos;
+       Lwt.return (Bytes.to_string res))
 *)
 (****)
 

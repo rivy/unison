@@ -281,7 +281,9 @@ endif
 ### Filesystem monitoring
 
 ifeq ($(OSARCH),Linux)
+ifneq ($(STATIC),true)
 -include fsmonitor/linux/Makefile src/fsmonitor/linux/Makefile
+endif
 endif
 
 ifeq ($(OSARCH),win32gnuc)

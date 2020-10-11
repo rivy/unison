@@ -38,9 +38,10 @@ jobs:
 
     - name: Initialize workflow variables
       id: vars
+      env: { STEP_ID: "vars" }
       shell: bash
       run: |
-        outputs() { for var in "$@" ; do echo steps.${GITHUB_ACTION}.outputs.${var}="${!var}"; echo ::set-output name=${var}::${!var}; done; }
+        outputs() { for var in "$@" ; do echo steps.${STEP_ID}.outputs.${var}="${!var}"; echo ::set-output name=${var}::${!var}; done; }
         # normalize to pre-compiled ocaml compiler variants for windows/Cygwin (decreases OCaml install time by 50%)
         OCAML_VARIANT='${{ matrix.job.ocaml-version }}'
         OCAML_VARIANT="${OCAML_VARIANT/%+mingw32/+mingw32c}"
